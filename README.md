@@ -6,8 +6,8 @@
 
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue?style=flat-square)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
-[![Stars](https://img.shields.io/github/stars/RohithCherukuri816/AI-Lead-Qualification-Bot?style=flat-square)](https://github.com/RohithCherukuri816/AI-Lead-Qualification-Bot/stargazers)
-[![Forks](https://img.shields.io/github/forks/RohithCherukuri816/AI-Lead-Qualification-Bot?style=flat-square)](https://github.com/RohithCherukuri816/AI-Lead-Qualification-Bot/network)
+[![Stars](https://img.shields.io/github/stars/bhaskarviswanadh/AI-Lead-Qualification-Bot?style=flat-square)](https://github.com/bhaskarviswanadh/AI-Lead-Qualification-Bot/stargazers)
+[![Forks](https://img.shields.io/github/forks/bhaskarviswanadh/AI-Lead-Qualification-Bot?style=flat-square)](https://github.com/bhaskarviswanadh/AI-Lead-Qualification-Bot/network)
 
 <p align="center">
   <strong>🚀 Transform your lead qualification process with AI-powered conversations and predictive analytics</strong>
@@ -206,7 +206,7 @@ Prospect: "Yes, we're losing track of leads and our sales process is inconsisten
 <summary><b>1️⃣ Clone Repository</b></summary>
 
 ```bash
-git clone https://github.com/RohithCherukuri816/AI-Lead-Qualification-Bot.git
+git clone https://github.com/bhaskarviswanadh/AI-Lead-Qualification-Bot.git
 cd AI-Lead-Qualification-Bot
 ```
 
@@ -525,10 +525,10 @@ This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) f
 
 <div align="center">
 
-### **Rohith Cherukuri**
+### **Bhaskar Viswanadh**
 
-[![GitHub](https://img.shields.io/badge/GitHub-RohithCherukuri816-blue?style=flat-square&logo=github)](https://github.com/RohithCherukuri816)
-[![Repository](https://img.shields.io/badge/Repository-AI--Lead--Qualification--Bot-green?style=flat-square&logo=github)](https://github.com/RohithCherukuri816/AI-Lead-Qualification-Bot)
+[![GitHub](https://img.shields.io/badge/GitHub-bhaskarviswanadh-blue?style=flat-square&logo=github)](https://github.com/bhaskarviswanadh)
+[![Repository](https://img.shields.io/badge/Repository-AI--Lead--Qualification--Bot-green?style=flat-square&logo=github)](https://github.com/bhaskarviswanadh/AI-Lead-Qualification-Bot)
 
 ---
 
