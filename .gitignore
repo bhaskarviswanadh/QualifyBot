@@ -1,72 +1,33 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
+# Dependencies
+node_modules/
+frontend/node_modules/
+backend/node_modules/
 
-# Virtual Environment
-venv/
-env/
-ENV/
-myenv/
+# Next.js
+frontend/.next/
+frontend/out/
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
-logs/*.log
-*.log
-
-# Environment variables
+# Env
+.env
 .env.local
 .env.*.local
+backend/.env
+frontend/.env.local
 
-# Model cache
-models/trained_models/*.pkl
-data/vector_store/*.faiss
-data/vector_store/*.pkl
+# Logs
+logs/
+*.log
+npm-debug.log*
 
-# Hugging Face cache
-.cache/
-huggingface/
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
 
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# pytest
-.pytest_cache/
-.coverage
-htmlcov/
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-
-.env
-*.env
+# Build / cache
+dist/
+coverage/
+.turbo/
+*.tsbuildinfo
+next-env.d.ts
