@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: qualifybot-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-flash-latest
+      - key: GEMINI_EMBEDDING_MODEL
+        value: gemini-embedding-001
+      - key: DATABASE_URL
+        sync: false
+      - key: CRM_MOCK_MODE
+        value: "true"
+      - key: ADMIN_EMAILS
+        value: admin@qualifybot.com

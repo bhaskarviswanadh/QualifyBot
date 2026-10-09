@@ -41,8 +41,8 @@ async function start() {
     console.error('[boot] RAG init warning:', err.message);
   }
 
-  app.listen(settings.port, () => {
-    console.log(`QualifyBot API listening on http://localhost:${settings.port}`);
+  app.listen(settings.port, '0.0.0.0', () => {
+    console.log(`QualifyBot API listening on http://0.0.0.0:${settings.port}`);
     console.log('Status:', { ...getStatus(), database: getDbMode() });
   });
 }
