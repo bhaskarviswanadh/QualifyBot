@@ -27,8 +27,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-body);
-  --font-display: var(--font-display);
+  --font-sans: 'Manrope Variable', system-ui, sans-serif;
+  --font-display: 'Fraunces Variable', Georgia, serif;
 }
 
 html,
@@ -40,11 +40,11 @@ body {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-body), system-ui, sans-serif;
+  font-family: 'Manrope Variable', system-ui, sans-serif;
 }
 
 .font-display {
-  font-family: var(--font-display), Georgia, serif;
+  font-family: 'Fraunces Variable', Georgia, serif;
 }
 
 .bg-atmosphere {

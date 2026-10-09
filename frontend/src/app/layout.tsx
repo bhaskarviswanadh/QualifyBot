@@ -1,18 +1,7 @@
 import type { Metadata } from "next";
-import { DM_Sans, Outfit } from "next/font/google";
+import "@fontsource-variable/fraunces";
+import "@fontsource-variable/manrope";
 import "./globals.css";
-
-const display = Outfit({
-  variable: "--font-display",
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-});
-
-const body = DM_Sans({
-  variable: "--font-body",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-});
 
 export const metadata: Metadata = {
   title: "QualifyBot",
@@ -27,7 +16,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${display.variable} ${body.variable} antialiased`}>
+      <body className="antialiased">
         {children}
       </body>
     </html>
