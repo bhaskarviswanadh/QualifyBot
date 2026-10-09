@@ -35,7 +35,103 @@ export type AuthUser = {
   email: string;
   name: string | null;
   userKey: string;
+  isAdmin?: boolean;
 };
+
+export type AdminLead = {
+  id: string;
+  userKey: string;
+  isGuest?: boolean;
+  source?: string;
+  title: string;
+  name: string | null;
+  email: string | null;
+  company: string | null;
+  role: string | null;
+  industry: string | null;
+  score: number;
+  intent: string;
+  summary: string | null;
+  hubspotSynced: boolean;
+  hubspotId: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminUser = {
+  id: string;
+  email: string | null;
+  name: string | null;
+  userKey: string;
+  isAdmin: boolean;
+  isGuest?: boolean;
+  chatCount?: number;
+  firstSeen?: string;
+  lastActive?: string;
+  createdAt: string;
+};
+
+export type AdminStats = {
+  totalLeads: number;
+  synced: number;
+  pending: number;
+  highIntent: number;
+  totalUsers: number;
+  guestLeads?: number;
+  registeredLeads?: number;
+  guestSessions?: number;
+};
+
+export type AdminSettings = {
+  geminiModel: string;
+  embeddingModel: string;
+  adminEmails: string[];
+  hubspotConfigured: boolean;
+  salesforceConfigured: boolean;
+  crmMockMode: boolean;
+  databaseMode: string;
+  status: SystemStatus;
+};
+
+export function getAdminOverview(adminEmail: string) {
+  const q = encodeURIComponent(adminEmail);
+  return request<{
+    stats: AdminStats;
+    recentLeads: AdminLead[];
+    users: AdminUser[];
+    guests: AdminUser[];
+  }>(`/api/admin/overview?adminEmail=${q}`);
+}
+
+export function listAdminUsers(adminEmail: string) {
+  const q = encodeURIComponent(adminEmail);
+  return request<{ items: AdminUser[]; guests: AdminUser[] }>(
+    `/api/admin/users?adminEmail=${q}`
+  );
+}
+
+export function getAdminSettings(adminEmail: string) {
+  const q = encodeURIComponent(adminEmail);
+  return request<{ settings: AdminSettings }>(
+    `/api/admin/settings?adminEmail=${q}`
+  );
+}
+
+export function listAdminLeads(adminEmail: string) {
+  const q = encodeURIComponent(adminEmail);
+  return request<{ items: AdminLead[] }>(`/api/admin/leads?adminEmail=${q}`);
+}
+
+export function syncAdminLeads(adminEmail: string, ids: string[]) {
+  return request<{
+    success: boolean;
+    message: string;
+    results: Array<{ id: string; success: boolean; message: string }>;
+  }>("/api/admin/sync", {
+    method: "POST",
+    body: JSON.stringify({ adminEmail, ids }),
+  });
+}
 
 export function registerAccount(input: {
   email: string;

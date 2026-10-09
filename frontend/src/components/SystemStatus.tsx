@@ -14,6 +14,11 @@ export function SystemStatusBar({ status }: Props) {
         ? "DB set"
         : "Local";
 
+  const crmOk =
+    status?.hubspot === "live" ||
+    status?.crm === "live" ||
+    status?.salesforce === "live";
+
   const items = [
     {
       label: "API",
@@ -31,9 +36,9 @@ export function SystemStatusBar({ status }: Props) {
       ok: status?.database === "neon" || status?.database === "configured",
     },
     {
-      label: "CRM",
-      detail: "Not integrated",
-      ok: false,
+      label: "HubSpot",
+      detail: status?.hubspot === "live" || status?.crm === "live" ? "Live" : "Off",
+      ok: crmOk,
     },
   ];
 

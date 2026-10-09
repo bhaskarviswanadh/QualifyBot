@@ -7,6 +7,7 @@ export type AuthSession = {
   name?: string | null;
   signedInAt: string;
   isGuest?: boolean;
+  isAdmin?: boolean;
 };
 
 function makeGuestId() {
@@ -59,7 +60,13 @@ export function getAuthSession(): AuthSession | null {
       return setGuestSession();
     }
 
-    return parsed as AuthSession;
+    const session = parsed as AuthSession;
+    // Keep admin flag in sync for known admin emails
+    const email = session.email?.toLowerCase() || "";
+    if (email === "admin@qualifybot.com" || email === "admin") {
+      session.isAdmin = true;
+    }
+    return session;
   } catch {
     return null;
   }
@@ -70,6 +77,7 @@ export function setAuthSession(input: {
   email?: string | null;
   name?: string | null;
   isGuest?: boolean;
+  isAdmin?: boolean;
 }): AuthSession {
   const session: AuthSession = {
     userKey: input.userKey,
@@ -77,6 +85,7 @@ export function setAuthSession(input: {
     name: input.name ?? null,
     signedInAt: new Date().toISOString(),
     isGuest: input.isGuest ?? false,
+    isAdmin: input.isAdmin ?? false,
   };
   window.localStorage.setItem(AUTH_KEY, JSON.stringify(session));
   return session;

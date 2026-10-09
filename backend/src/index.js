@@ -3,7 +3,9 @@ import cors from 'cors';
 import { settings, getStatus } from './config/settings.js';
 import { initDb, getDbMode } from './db/client.js';
 import { botService } from './services/botService.js';
+import { ensureAdminUser } from './services/authService.js';
 import authRoutes from './routes/auth.js';
+import adminRoutes from './routes/admin.js';
 import chatRoutes from './routes/chat.js';
 import crmRoutes from './routes/crm.js';
 
@@ -20,11 +22,18 @@ app.get('/api/health', (_req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/crm', crmRoutes);
 
 async function start() {
   await initDb();
+
+  try {
+    await ensureAdminUser();
+  } catch (err) {
+    console.error('[boot] Admin seed warning:', err.message);
+  }
 
   try {
     await botService.initialize();

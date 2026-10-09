@@ -9,6 +9,7 @@ type AuthResult = {
   userKey: string;
   email: string;
   name?: string | null;
+  isAdmin?: boolean;
 };
 
 type Props = {
@@ -37,6 +38,7 @@ export function LoginPage({ onSuccess, onGuest }: Props) {
         userKey: result.user.userKey,
         email: result.user.email,
         name: result.user.name,
+        isAdmin: result.user.isAdmin,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Authentication failed");
@@ -46,12 +48,12 @@ export function LoginPage({ onSuccess, onGuest }: Props) {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4">
-      <div className="pointer-events-none absolute inset-0 bg-atmosphere" />
-      <div className="pointer-events-none absolute -left-20 top-16 h-72 w-72 rounded-full bg-[var(--blue)]/20 blur-3xl animate-drift" />
-      <div className="pointer-events-none absolute -right-16 bottom-12 h-80 w-80 rounded-full bg-[var(--green)]/20 blur-3xl animate-drift-slow" />
+    <div className="relative h-dvh overflow-x-hidden overflow-y-auto px-4 py-8">
+      <div className="pointer-events-none fixed inset-0 bg-atmosphere" />
+      <div className="pointer-events-none fixed -left-20 top-16 h-72 w-72 rounded-full bg-[var(--blue)]/20 blur-3xl animate-drift" />
+      <div className="pointer-events-none fixed -right-16 bottom-12 h-80 w-80 rounded-full bg-[var(--green)]/20 blur-3xl animate-drift-slow" />
 
-      <div className="relative w-full max-w-md animate-fade-up">
+      <div className="relative mx-auto flex min-h-full w-full max-w-md flex-col justify-center animate-fade-up">
         <div className="mb-8 text-center">
           <div className="mx-auto mb-4 w-fit">
             <BrandLogo
@@ -124,16 +126,16 @@ export function LoginPage({ onSuccess, onGuest }: Props) {
           <label className="mb-4 block">
             <span className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-[var(--ink)]">
               <Mail size={14} className="text-[var(--blue)]" />
-              Email
+              {mode === "login" ? "Email or username" : "Email"}
             </span>
             <input
-              type="email"
+              type={mode === "login" ? "text" : "email"}
               autoComplete="username"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
               className="w-full rounded-xl border border-[var(--line)] bg-white px-4 py-3 text-[var(--ink)] outline-none transition focus:border-[var(--blue)] focus:ring-2 focus:ring-[var(--blue)]/25"
-              placeholder="you@company.com"
+              placeholder={mode === "login" ? "admin or you@company.com" : "you@company.com"}
             />
           </label>
 
@@ -192,6 +194,13 @@ export function LoginPage({ onSuccess, onGuest }: Props) {
             <UserRound size={16} />
             Continue as guest
           </button>
+
+          {mode === "login" && (
+            <p className="mt-4 rounded-xl bg-[var(--blue-soft)] px-3 py-2.5 text-center text-xs text-[var(--blue-deep)]">
+              Admin login: <span className="font-semibold">admin</span> /{" "}
+              <span className="font-semibold">admin123</span>
+            </p>
+          )}
         </form>
       </div>
     </div>

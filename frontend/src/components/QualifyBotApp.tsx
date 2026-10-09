@@ -4,8 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import {
   CloudUpload,
   FileText,
+  LayoutDashboard,
   LoaderCircle,
   LogOut,
+  MessageSquare,
   MessageSquarePlus,
   X,
 } from "lucide-react";
@@ -28,6 +30,7 @@ import {
   type HistoryItem,
 } from "@/lib/api";
 import type { ChatMessage, LeadData, SystemStatus } from "@/lib/types";
+import { AdminDashboard } from "./AdminDashboard";
 import { BrandLogo } from "./BrandLogo";
 import { ChatPanel } from "./ChatPanel";
 import { HistoryPanel } from "./HistoryPanel";
@@ -50,11 +53,15 @@ export function QualifyBotApp() {
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [noticeTone, setNoticeTone] = useState<"info" | "warn">("info");
+  const [view, setView] = useState<"chat" | "admin">("chat");
 
   const userKey = auth?.userKey || "";
+  const isAdmin = Boolean(auth?.isAdmin && auth?.email);
 
   useEffect(() => {
-    setAuth(getAuthSession());
+    const session = getAuthSession();
+    setAuth(session);
+    if (session?.isAdmin) setView("admin");
     setAuthChecked(true);
   }, []);
 
@@ -106,36 +113,51 @@ export function QualifyBotApp() {
 
   useEffect(() => {
     if (!auth?.userKey) return;
+    // Admins land on dashboard — don't auto-open chat
+    if (auth.isAdmin && view === "admin") {
+      void getHealth()
+        .then((health) => {
+          if (health?.status) setStatus(health.status);
+        })
+        .catch(() => null);
+      return;
+    }
     setHistory([]);
     setMessages([]);
     setLeadData(null);
     setSummary(null);
     setSessionId(null);
     void boot();
-  }, [auth?.userKey]); // eslint-disable-line react-hooks/exhaustive-deps -- reset when identity changes
+  }, [auth?.userKey, view]); // eslint-disable-line react-hooks/exhaustive-deps -- reset when identity/view changes
 
   function handleLogin(user: {
     userKey: string;
     email: string;
     name?: string | null;
+    isAdmin?: boolean;
   }) {
+    const admin = Boolean(user.isAdmin);
+    setView(admin ? "admin" : "chat");
     setAuth(
       setAuthSession({
         userKey: user.userKey,
         email: user.email,
         name: user.name,
         isGuest: false,
+        isAdmin: admin,
       })
     );
   }
 
   function handleGuest() {
+    setView("chat");
     setAuth(setGuestSession());
   }
 
   function handleLogout() {
     clearAuthSession();
     setAuth(null);
+    setView("chat");
     setSessionId(null);
     setMessages([]);
     setLeadData(null);
@@ -251,8 +273,13 @@ export function QualifyBotApp() {
       if (result.leadData) setLeadData(result.leadData);
       const hs = result.results?.hubspot?.message || "Not integrated";
       const sf = result.results?.salesforce?.message || "Not integrated";
-      setNoticeTone("warn");
-      setNotice(`CRM sync: HubSpot — ${hs}. Salesforce — ${sf}.`);
+      const hsOk = Boolean(result.results?.hubspot?.success);
+      setNoticeTone(hsOk ? "info" : "warn");
+      setNotice(
+        hsOk
+          ? `Synced to HubSpot. ${hs}`
+          : `CRM sync: HubSpot — ${hs}. Salesforce — ${sf}.`
+      );
     } catch (err) {
       setNoticeTone("warn");
       setNotice(err instanceof Error ? err.message : "CRM sync failed");
@@ -293,7 +320,9 @@ export function QualifyBotApp() {
               <p className="truncate text-xs text-[var(--muted)]">
                 {auth.isGuest
                   ? "Guest mode · only your chats on this browser"
-                  : `${auth.email} · only your chats & lead data`}
+                  : isAdmin
+                    ? `${auth.email} · admin (all leads)`
+                    : `${auth.email} · only your chats & lead data`}
               </p>
             </div>
           </div>
@@ -301,6 +330,29 @@ export function QualifyBotApp() {
             <div className="hidden lg:block">
               <SystemStatusBar status={status} />
             </div>
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => setView(view === "admin" ? "chat" : "admin")}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                  view === "admin"
+                    ? "border-[var(--blue)] bg-[var(--blue-soft)] text-[var(--blue-deep)]"
+                    : "border-[var(--line)] bg-white text-[var(--ink)] hover:border-[var(--blue)]"
+                }`}
+              >
+                {view === "admin" ? (
+                  <>
+                    <MessageSquare size={13} />
+                    Chat
+                  </>
+                ) : (
+                  <>
+                    <LayoutDashboard size={13} />
+                    Admin leads
+                  </>
+                )}
+              </button>
+            )}
             <button
               type="button"
               onClick={handleLogout}
@@ -313,101 +365,135 @@ export function QualifyBotApp() {
           </div>
         </header>
 
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => void boot()}
-            disabled={loading || busyAction !== null}
-            title="Start a fresh conversation"
-            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--line)] bg-white px-3.5 py-1.5 text-sm font-medium text-[var(--ink)] transition hover:border-[var(--blue)] hover:text-[var(--blue)] disabled:opacity-50"
-          >
-            <MessageSquarePlus size={15} />
-            New chat
-          </button>
-          <button
-            type="button"
-            onClick={() => void handleSummary()}
-            disabled={!sessionId || busyAction !== null}
-            title="Generate a short summary of this chat"
-            className="btn-secondary inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium disabled:opacity-50"
-          >
-            {busyAction === "summary" ? (
-              <LoaderCircle size={15} className="animate-spin" />
-            ) : (
-              <FileText size={15} />
+        {view === "admin" && isAdmin && auth.email ? (
+          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+            {notice && (
+              <div
+                className={`flex items-start gap-2 rounded-xl px-3 py-1.5 text-xs ${
+                  noticeTone === "warn"
+                    ? "border border-[var(--blue)]/20 bg-[var(--blue-soft)] text-[var(--blue-deep)]"
+                    : "border border-[var(--green)]/25 bg-[var(--green-soft)] text-[var(--green-deep)]"
+                }`}
+              >
+                <span className="min-w-0 flex-1">{notice}</span>
+                <button
+                  type="button"
+                  onClick={() => setNotice(null)}
+                  className="shrink-0 opacity-70 hover:opacity-100"
+                  aria-label="Dismiss"
+                >
+                  <X size={12} />
+                </button>
+              </div>
             )}
-            Summary
-          </button>
-          <button
-            type="button"
-            onClick={() => void handleSync()}
-            disabled={!sessionId || busyAction !== null}
-            title="Push lead to CRM (not integrated yet)"
-            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--line)] bg-white px-3.5 py-1.5 text-sm font-medium text-[var(--ink)] transition hover:border-[var(--green)] hover:text-[var(--green)] disabled:opacity-50"
-          >
-            {busyAction === "sync" ? (
-              <LoaderCircle size={15} className="animate-spin" />
-            ) : (
-              <CloudUpload size={15} />
-            )}
-            Sync CRM
-          </button>
-          {notice && (
-            <div
-              className={`ml-auto flex max-w-md items-start gap-2 rounded-xl px-3 py-1.5 text-xs ${
-                noticeTone === "warn"
-                  ? "border border-[var(--blue)]/20 bg-[var(--blue-soft)] text-[var(--blue-deep)]"
-                  : "border border-[var(--green)]/25 bg-[var(--green-soft)] text-[var(--green-deep)]"
-              }`}
-            >
-              <span className="min-w-0 flex-1">{notice}</span>
+            <AdminDashboard
+              adminEmail={auth.email}
+              onOpenChat={() => setView("chat")}
+              onNotice={(message, tone = "info") => {
+                setNoticeTone(tone);
+                setNotice(message);
+              }}
+            />
+          </div>
+        ) : (
+          <>
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => setNotice(null)}
-                className="shrink-0 opacity-70 hover:opacity-100"
-                aria-label="Dismiss"
+                onClick={() => void boot()}
+                disabled={loading || busyAction !== null}
+                title="Start a fresh conversation"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[var(--line)] bg-white px-3.5 py-1.5 text-sm font-medium text-[var(--ink)] transition hover:border-[var(--blue)] hover:text-[var(--blue)] disabled:opacity-50"
               >
-                <X size={12} />
+                <MessageSquarePlus size={15} />
+                New chat
               </button>
+              <button
+                type="button"
+                onClick={() => void handleSummary()}
+                disabled={!sessionId || busyAction !== null}
+                title="Generate a short summary of this chat"
+                className="btn-secondary inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium disabled:opacity-50"
+              >
+                {busyAction === "summary" ? (
+                  <LoaderCircle size={15} className="animate-spin" />
+                ) : (
+                  <FileText size={15} />
+                )}
+                Summary
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleSync()}
+                disabled={!sessionId || busyAction !== null}
+                title="Push this chat lead to HubSpot"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[var(--line)] bg-white px-3.5 py-1.5 text-sm font-medium text-[var(--ink)] transition hover:border-[var(--green)] hover:text-[var(--green)] disabled:opacity-50"
+              >
+                {busyAction === "sync" ? (
+                  <LoaderCircle size={15} className="animate-spin" />
+                ) : (
+                  <CloudUpload size={15} />
+                )}
+                Sync CRM
+              </button>
+              {notice && (
+                <div
+                  className={`ml-auto flex max-w-md items-start gap-2 rounded-xl px-3 py-1.5 text-xs ${
+                    noticeTone === "warn"
+                      ? "border border-[var(--blue)]/20 bg-[var(--blue-soft)] text-[var(--blue-deep)]"
+                      : "border border-[var(--green)]/25 bg-[var(--green-soft)] text-[var(--green-deep)]"
+                  }`}
+                >
+                  <span className="min-w-0 flex-1">{notice}</span>
+                  <button
+                    type="button"
+                    onClick={() => setNotice(null)}
+                    className="shrink-0 opacity-70 hover:opacity-100"
+                    aria-label="Dismiss"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        <div className="grid min-h-0 flex-1 gap-3 overflow-hidden lg:grid-cols-[220px_1.45fr_1fr]">
-          <div className="hidden min-h-0 overflow-hidden rounded-2xl border border-[var(--line)] bg-white/80 p-3 lg:block">
-            <HistoryPanel
-              items={history}
-              activeId={sessionId}
-              loading={historyLoading || busyAction === "history"}
-              onSelect={(id) => void handleOpenHistory(id)}
-              onDelete={(id) => void handleDeleteHistory(id)}
-            />
-          </div>
+            <div className="grid min-h-0 flex-1 gap-3 overflow-hidden lg:grid-cols-[220px_1.45fr_1fr]">
+              <div className="hidden min-h-0 overflow-hidden rounded-2xl border border-[var(--line)] bg-white/80 p-3 lg:block">
+                <HistoryPanel
+                  items={history}
+                  activeId={sessionId}
+                  loading={historyLoading || busyAction === "history"}
+                  onSelect={(id) => void handleOpenHistory(id)}
+                  onDelete={(id) => void handleDeleteHistory(id)}
+                />
+              </div>
 
-          <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[var(--line)] bg-white/80 p-3 shadow-[0_12px_40px_rgba(31,41,55,0.06)] md:p-4">
-            <div className="mb-2 shrink-0 text-xs font-medium text-[var(--muted)]">
-              Chat · tell the bot about the prospect
+              <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[var(--line)] bg-white/80 p-3 shadow-[0_12px_40px_rgba(31,41,55,0.06)] md:p-4">
+                <div className="mb-2 shrink-0 text-xs font-medium text-[var(--muted)]">
+                  Chat · prospect talks here
+                </div>
+                <ChatPanel
+                  messages={messages}
+                  input={input}
+                  loading={loading}
+                  onInputChange={setInput}
+                  onSend={() => void handleSend()}
+                />
+              </div>
+
+              <div className="min-h-0 overflow-hidden rounded-2xl border border-[var(--line)] bg-white/70 p-3 md:p-4">
+                <div className="mb-2 shrink-0 text-xs font-medium text-[var(--muted)]">
+                  Lead details · updates as they chat
+                </div>
+                <LeadSidebar
+                  leadData={leadData}
+                  summary={summary}
+                  sessionId={sessionId}
+                />
+              </div>
             </div>
-            <ChatPanel
-              messages={messages}
-              input={input}
-              loading={loading}
-              onInputChange={setInput}
-              onSend={() => void handleSend()}
-            />
-          </div>
-
-          <div className="min-h-0 overflow-hidden rounded-2xl border border-[var(--line)] bg-white/70 p-3 md:p-4">
-            <div className="mb-2 shrink-0 text-xs font-medium text-[var(--muted)]">
-              Lead details · updates as you chat
-            </div>
-            <LeadSidebar
-              leadData={leadData}
-              summary={summary}
-              sessionId={sessionId}
-            />
-          </div>
-        </div>
+          </>
+        )}
       </main>
     </div>
   );

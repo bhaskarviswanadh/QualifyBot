@@ -24,5 +24,7 @@ export type SystemStatus = {
   gemini: boolean;
   huggingFace?: boolean;
   crm: string;
+  hubspot?: string;
+  salesforce?: string;
   database?: string;
 };

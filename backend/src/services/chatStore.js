@@ -220,6 +220,221 @@ export async function deleteChat(chatId, userKey) {
   return store.chats.length < before;
 }
 
+export async function getAdminStats() {
+  const leads = await listAllLeads(500);
+  const synced = leads.filter((l) => l.hubspotSynced).length;
+  const pending = leads.length - synced;
+  const highIntent = leads.filter((l) =>
+    ['buy_soon', 'considering'].includes(String(l.intent || ''))
+  ).length;
+  const guestLeads = leads.filter((l) => l.isGuest).length;
+  return {
+    totalLeads: leads.length,
+    synced,
+    pending,
+    highIntent,
+    guestLeads,
+    registeredLeads: leads.length - guestLeads,
+  };
+}
+
+export async function listGuestSessions() {
+  if (isDbEnabled()) {
+    const { rows } = await query(
+      `SELECT user_key,
+              COUNT(*)::int AS chat_count,
+              MAX(updated_at) AS last_active,
+              MIN(created_at) AS first_seen
+       FROM chats
+       WHERE user_key LIKE 'guest:%'
+       GROUP BY user_key
+       ORDER BY MAX(updated_at) DESC
+       LIMIT 100`
+    );
+    return rows.map((r, idx) => ({
+      id: r.user_key,
+      userKey: r.user_key,
+      name: `Guest ${idx + 1}`,
+      email: null,
+      isGuest: true,
+      isAdmin: false,
+      chatCount: r.chat_count,
+      firstSeen: r.first_seen,
+      lastActive: r.last_active,
+      createdAt: r.first_seen,
+    }));
+  }
+
+  const store = readFileStore();
+  const byGuest = new Map();
+  for (const chat of store.chats) {
+    if (!String(chat.userKey || '').startsWith('guest:')) continue;
+    const cur = byGuest.get(chat.userKey) || {
+      userKey: chat.userKey,
+      chatCount: 0,
+      firstSeen: chat.createdAt,
+      lastActive: chat.updatedAt,
+    };
+    cur.chatCount += 1;
+    if (new Date(chat.createdAt) < new Date(cur.firstSeen)) cur.firstSeen = chat.createdAt;
+    if (new Date(chat.updatedAt) > new Date(cur.lastActive)) cur.lastActive = chat.updatedAt;
+    byGuest.set(chat.userKey, cur);
+  }
+  return Array.from(byGuest.values())
+    .sort((a, b) => new Date(b.lastActive) - new Date(a.lastActive))
+    .map((g, idx) => ({
+      id: g.userKey,
+      userKey: g.userKey,
+      name: `Guest ${idx + 1}`,
+      email: null,
+      isGuest: true,
+      isAdmin: false,
+      chatCount: g.chatCount,
+      firstSeen: g.firstSeen,
+      lastActive: g.lastActive,
+      createdAt: g.firstSeen,
+    }));
+}
+
+export async function listAllLeads(limit = 200) {
+  if (isDbEnabled()) {
+    const { rows } = await query(
+      `SELECT id, user_key, title, lead_data, summary, created_at, updated_at
+       FROM chats
+       WHERE lead_data IS NOT NULL
+         AND (
+           lead_data->>'score' IS NOT NULL
+           OR lead_data->'lead'->>'email' IS NOT NULL
+           OR lead_data->'lead'->>'name' IS NOT NULL
+           OR lead_data->'lead'->>'company' IS NOT NULL
+         )
+       ORDER BY updated_at DESC
+       LIMIT $1`,
+      [limit]
+    );
+    return rows.map((r) => mapLeadRow(r));
+  }
+
+  const store = readFileStore();
+  return store.chats
+    .filter((c) => c.leadData && hasLeadSignal(c.leadData))
+    .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+    .slice(0, limit)
+    .map((c) =>
+      mapLeadRow({
+        id: c.id,
+        user_key: c.userKey,
+        title: c.title,
+        lead_data: c.leadData,
+        summary: c.summary,
+        created_at: c.createdAt,
+        updated_at: c.updatedAt,
+      })
+    );
+}
+
+export async function getChatById(chatId) {
+  if (isDbEnabled()) {
+    const { rows } = await query(
+      `SELECT id, user_key, title, lead_data, summary, created_at, updated_at
+       FROM chats WHERE id = $1`,
+      [chatId]
+    );
+    if (!rows[0]) return null;
+    return {
+      id: rows[0].id,
+      userKey: rows[0].user_key,
+      title: rows[0].title,
+      leadData: rows[0].lead_data,
+      summary: rows[0].summary,
+      createdAt: rows[0].created_at,
+      updatedAt: rows[0].updated_at,
+    };
+  }
+
+  const store = readFileStore();
+  const chat = store.chats.find((c) => c.id === chatId);
+  if (!chat) return null;
+  return {
+    id: chat.id,
+    userKey: chat.userKey,
+    title: chat.title,
+    leadData: chat.leadData,
+    summary: chat.summary,
+    createdAt: chat.createdAt,
+    updatedAt: chat.updatedAt,
+  };
+}
+
+export async function markHubspotSynced(chatId, hubspotId) {
+  if (isDbEnabled()) {
+    await query(
+      `UPDATE chats
+       SET lead_data = COALESCE(lead_data, '{}'::jsonb)
+           || jsonb_build_object(
+                'hubspot_synced', true,
+                'hubspot_id', $2::text,
+                'hubspot_synced_at', $3::text
+              ),
+           updated_at = NOW()
+       WHERE id = $1`,
+      [chatId, String(hubspotId || ''), new Date().toISOString()]
+    );
+    return;
+  }
+
+  const store = readFileStore();
+  const chat = store.chats.find((c) => c.id === chatId);
+  if (!chat) return;
+  chat.leadData = {
+    ...(chat.leadData || {}),
+    hubspot_synced: true,
+    hubspot_id: hubspotId || null,
+    hubspot_synced_at: new Date().toISOString(),
+  };
+  chat.updatedAt = new Date().toISOString();
+  writeFileStore(store);
+}
+
+function hasLeadSignal(leadData) {
+  if (!leadData) return false;
+  const lead = leadData.lead || {};
+  return Boolean(
+    leadData.score ||
+      lead.email ||
+      lead.name ||
+      lead.company ||
+      lead.role
+  );
+}
+
+function mapLeadRow(r) {
+  const leadData = r.lead_data || {};
+  const lead = leadData.lead || {};
+  const userKey = r.user_key || '';
+  const isGuest = String(userKey).startsWith('guest:');
+  return {
+    id: r.id,
+    userKey,
+    isGuest,
+    source: isGuest ? 'Guest mode' : 'Registered user',
+    title: r.title || 'Untitled',
+    name: lead.name || null,
+    email: lead.email || null,
+    company: lead.company || null,
+    role: lead.role || null,
+    industry: lead.industry || null,
+    score: leadData.score ?? 0,
+    intent: leadData.intent || 'researching',
+    summary: r.summary || null,
+    hubspotSynced: Boolean(leadData.hubspot_synced),
+    hubspotId: leadData.hubspot_id || null,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+    leadData,
+  };
+}
+
 export function warmupFileStore() {
   if (!getPool()) ensureFileStore();
 }
