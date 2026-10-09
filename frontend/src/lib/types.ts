@@ -22,5 +22,7 @@ export type ChatMessage = {
 export type SystemStatus = {
   api: boolean;
   gemini: boolean;
+  huggingFace?: boolean;
   crm: string;
+  database?: string;
 };

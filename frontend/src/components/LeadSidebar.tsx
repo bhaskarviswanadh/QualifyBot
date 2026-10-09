@@ -10,7 +10,6 @@ import {
   UserRound,
   Zap,
 } from "lucide-react";
-import { MdOutlineScore } from "react-icons/md";
 import type { LeadData } from "@/lib/types";
 
 type Props = {
@@ -29,58 +28,48 @@ function Field({
   value?: string | null;
 }) {
   return (
-    <div className="flex items-start gap-3">
-      <Icon size={16} className="mt-0.5 text-[var(--accent)]" />
-      <div>
-        <p className="text-xs uppercase tracking-wide text-[var(--muted)]">
+    <div className="flex items-center gap-2.5">
+      <Icon size={14} className="shrink-0 text-[var(--blue)]" />
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] uppercase tracking-wide text-[var(--muted)]">
           {label}
         </p>
-        <p className="font-medium text-[var(--ink)]">{value || "—"}</p>
+        <p className="truncate text-sm font-medium text-[var(--ink)]">
+          {value || "—"}
+        </p>
       </div>
     </div>
   );
 }
 
-export function LeadSidebar({ leadData, summary, sessionId }: Props) {
+export function LeadSidebar({ leadData, summary }: Props) {
   const lead = leadData?.lead;
   const score = leadData?.score ?? 0;
 
   return (
-    <aside className="flex h-full flex-col gap-5 overflow-y-auto">
-      <div>
-        <p className="text-xs uppercase tracking-[0.18em] text-[var(--muted)]">
-          Session
-        </p>
-        <p className="mt-1 break-all font-mono text-xs text-[var(--ink)]">
-          {sessionId || "—"}
-        </p>
-      </div>
-
-      <div className="rounded-2xl bg-[var(--ink)] p-5 text-white shadow-lg">
+    <aside className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto pr-1">
+      <div className="shrink-0 rounded-2xl bg-brand-gradient p-4 text-white shadow-md shadow-[var(--blue)]/15">
         <div className="flex items-center justify-between">
-          <span className="inline-flex items-center gap-2 text-sm text-white/70">
-            <MdOutlineScore size={18} />
-            Lead score
-          </span>
-          <span className="text-3xl font-semibold tabular-nums">{score}</span>
+          <span className="text-xs font-medium text-white/80">Lead score</span>
+          <span className="text-2xl font-semibold tabular-nums">{score}</span>
         </div>
-        <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/15">
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/20">
           <div
-            className="h-full rounded-full bg-[var(--accent)] transition-all duration-500"
+            className="h-full rounded-full bg-white transition-all duration-500"
             style={{ width: `${Math.min(100, score)}%` }}
           />
         </div>
-        <p className="mt-3 text-sm text-white/80">
+        <p className="mt-2 text-xs text-white/85">
           Intent:{" "}
-          <span className="font-medium text-white">
+          <span className="font-semibold text-white">
             {leadData?.intent || "researching"}
           </span>
         </p>
       </div>
 
-      <div className="space-y-4 rounded-2xl bg-white/70 p-5 ring-1 ring-[var(--line)] backdrop-blur">
-        <h3 className="inline-flex items-center gap-2 font-semibold text-[var(--ink)]">
-          <BadgeCheck size={18} className="text-[var(--accent)]" />
+      <div className="shrink-0 space-y-2.5 rounded-2xl bg-white p-3.5 ring-1 ring-[var(--line)]">
+        <h3 className="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--ink)]">
+          <BadgeCheck size={15} className="text-[var(--green)]" />
           Lead profile
         </h3>
         <Field icon={UserRound} label="Name" value={lead?.name} />
@@ -90,16 +79,16 @@ export function LeadSidebar({ leadData, summary, sessionId }: Props) {
         <Field icon={Zap} label="Industry" value={lead?.industry} />
       </div>
 
-      <div className="rounded-2xl bg-white/70 p-5 ring-1 ring-[var(--line)] backdrop-blur">
-        <h3 className="mb-3 font-semibold text-[var(--ink)]">Signals</h3>
-        <ul className="space-y-2">
+      <div className="shrink-0 rounded-2xl bg-white p-3.5 ring-1 ring-[var(--line)]">
+        <h3 className="mb-2 text-sm font-semibold text-[var(--ink)]">Signals</h3>
+        <ul className="space-y-1.5">
           {(leadData?.top_signals?.length
             ? leadData.top_signals
-            : ["Start chatting to collect signals"]
+            : ["Chat to collect signals"]
           ).map((signal) => (
             <li
               key={signal}
-              className="rounded-xl bg-[var(--surface)] px-3 py-2 text-sm text-[var(--ink)]"
+              className="rounded-lg bg-[var(--surface)] px-2.5 py-1.5 text-xs text-[var(--ink)]"
             >
               {signal}
             </li>
@@ -107,17 +96,17 @@ export function LeadSidebar({ leadData, summary, sessionId }: Props) {
         </ul>
       </div>
 
-      <div className="rounded-2xl bg-white/70 p-5 ring-1 ring-[var(--line)] backdrop-blur">
-        <h3 className="mb-2 inline-flex items-center gap-2 font-semibold text-[var(--ink)]">
-          <Tags size={18} className="text-[var(--accent)]" />
-          CRM tags
+      <div className="shrink-0 rounded-2xl bg-white p-3.5 ring-1 ring-[var(--line)]">
+        <h3 className="mb-2 inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--ink)]">
+          <Tags size={15} className="text-[var(--green)]" />
+          Next step
         </h3>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5">
           {(leadData?.crm_tags?.length ? leadData.crm_tags : ["pending"]).map(
             (tag) => (
               <span
                 key={tag}
-                className="rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-medium text-[var(--accent)]"
+                className="rounded-full bg-[var(--green-soft)] px-2.5 py-0.5 text-[11px] font-medium text-[var(--green)]"
               >
                 {tag}
               </span>
@@ -125,8 +114,7 @@ export function LeadSidebar({ leadData, summary, sessionId }: Props) {
           )}
         </div>
         {leadData?.recommended_action && (
-          <p className="mt-3 text-sm text-[var(--muted)]">
-            Next:{" "}
+          <p className="mt-2 text-xs text-[var(--muted)]">
             <span className="font-medium text-[var(--ink)]">
               {leadData.recommended_action.replaceAll("_", " ")}
             </span>
@@ -135,14 +123,24 @@ export function LeadSidebar({ leadData, summary, sessionId }: Props) {
         )}
       </div>
 
-      {summary && (
-        <div className="rounded-2xl bg-white/70 p-5 ring-1 ring-[var(--line)] backdrop-blur">
-          <h3 className="mb-2 font-semibold text-[var(--ink)]">Summary</h3>
-          <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--ink)]">
+      <div
+        id="lead-summary"
+        className="rounded-2xl bg-white p-3.5 ring-1 ring-[var(--line)]"
+      >
+        <h3 className="mb-1.5 text-sm font-semibold text-[var(--ink)]">
+          Summary
+        </h3>
+        {summary ? (
+          <p className="whitespace-pre-wrap text-xs leading-relaxed text-[var(--ink)]">
             {summary}
           </p>
-        </div>
-      )}
+        ) : (
+          <p className="text-xs text-[var(--muted)]">
+            Click <span className="font-medium text-[var(--green)]">Summary</span>{" "}
+            above to generate a conversation recap here.
+          </p>
+        )}
+      </div>
     </aside>
   );
 }

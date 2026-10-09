@@ -14,6 +14,10 @@ frontend/out/
 backend/.env
 frontend/.env.local
 
+# Local chat history / users fallback (use Neon in production)
+backend/src/data/chat_history.json
+backend/src/data/users.json
+
 # Logs
 logs/
 *.log
@@ -31,3 +35,4 @@ coverage/
 .turbo/
 *.tsbuildinfo
 next-env.d.ts
+.neon

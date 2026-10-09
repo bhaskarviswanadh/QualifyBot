@@ -11,8 +11,9 @@ export const DATA_DIR = path.join(BACKEND_ROOT, 'data');
 export const settings = {
   port: Number(process.env.PORT || 4000),
   geminiApiKey: process.env.GEMINI_API_KEY || '',
-  geminiModel: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
-  embeddingModel: process.env.GEMINI_EMBEDDING_MODEL || 'text-embedding-004',
+  geminiModel: process.env.GEMINI_MODEL || 'gemini-flash-latest',
+  embeddingModel: process.env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-001',
+  databaseUrl: process.env.DATABASE_URL || '',
   topK: Number(process.env.RAG_TOP_K || 4),
   chunkSize: 800,
   chunkOverlap: 120,
@@ -28,9 +29,15 @@ export const settings = {
 };
 
 export function getStatus() {
+  const crmLive =
+    !settings.crm.mockMode &&
+    Boolean(settings.crm.hubspotApiKey || settings.crm.salesforceApiKey);
+
   return {
     api: true,
     gemini: Boolean(settings.geminiApiKey),
-    crm: settings.crm.mockMode ? 'mock' : 'live',
+    huggingFace: false,
+    crm: crmLive ? 'live' : 'not_integrated',
+    database: settings.databaseUrl ? 'configured' : 'local',
   };
 }

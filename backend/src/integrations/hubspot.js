@@ -10,12 +10,11 @@ export class HubSpotIntegration {
 
   async createLead(leadInfo) {
     if (this.mockMode) {
-      const leadId = `mock_hs_${Date.now()}`;
       return {
-        success: true,
-        lead_id: leadId,
-        hubspot_id: leadId,
-        message: 'Mock HubSpot contact created',
+        success: false,
+        lead_id: null,
+        hubspot_id: null,
+        message: 'Not integrated',
       };
     }
 
