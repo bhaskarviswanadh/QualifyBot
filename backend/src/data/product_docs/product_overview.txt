@@ -96,22 +96,23 @@ Our AI Lead Qualification Bot is a comprehensive solution for SaaS companies loo
 ## Technical Architecture
 
 ### AI/ML Components
-- LLM: Mistral-7B-Instruct for natural conversations
-- Embeddings: sentence-transformers for semantic search
-- Vector DB: FAISS for fast document retrieval
-- Predictive Model: LightGBM for lead scoring
+- LLM: Google Gemini for natural conversations
+- Embeddings: Gemini text-embedding models for semantic search
+- RAG: Document chunking with Gemini-powered retrieval
+- Lead scoring: Rule-based intent scoring from conversation signals
+- Hugging Face: Not integrated
 
 ### Integration Capabilities
 - REST API for custom integrations
 - Webhook support for real-time updates
-- CRM APIs (HubSpot, Salesforce)
+- CRM APIs (HubSpot, Salesforce) — Not integrated by default
 - Custom webhook endpoints
 
 ### Deployment Options
 - Cloud-hosted solution
 - On-premise deployment
 - Hybrid cloud/on-premise
-- Hugging Face Spaces deployment
+- Standard Node.js / Next.js hosting
 
 ## Pricing
 

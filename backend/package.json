@@ -10,9 +10,11 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.0",
     "axios": "^1.8.4",
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "pg": "^8.23.1",
     "uuid": "^11.1.0"
   }
 }

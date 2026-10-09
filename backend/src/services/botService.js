@@ -3,6 +3,7 @@ import { geminiService } from './geminiService.js';
 import { ragService } from './ragService.js';
 import { emptyLead } from './scoringService.js';
 import { getCrmClient } from '../integrations/manager.js';
+import * as chatStore from './chatStore.js';
 
 class BotService {
   constructor() {
@@ -11,15 +12,19 @@ class BotService {
   }
 
   async initialize() {
+    chatStore.warmupFileStore();
     await ragService.initialize();
   }
 
-  startChat() {
+  async startChat(userKey = 'guest') {
     const sessionId = uuidv4();
     const greeting = geminiService.getGreeting();
+    await chatStore.createChat({ id: sessionId, userKey, greeting });
     this.sessions.set(sessionId, {
+      userKey,
       history: [{ role: 'assistant', content: greeting }],
       leadData: emptyLead(),
+      summary: null,
     });
     return { sessionId, greeting };
   }
@@ -28,10 +33,30 @@ class BotService {
     return this.sessions.get(sessionId) || null;
   }
 
-  async chat(sessionId, message) {
-    let session = this.sessions.get(sessionId);
+  async loadSession(sessionId, userKey) {
+    const cached = this.sessions.get(sessionId);
+    if (cached && cached.userKey === userKey) return cached;
+
+    const saved = await chatStore.getChat(sessionId, userKey);
+    if (!saved) return null;
+
+    const session = {
+      userKey,
+      history: saved.history || [],
+      leadData: saved.leadData || emptyLead(),
+      summary: saved.summary || null,
+    };
+    this.sessions.set(sessionId, session);
+    return session;
+  }
+
+  async chat(sessionId, message, userKey = 'guest') {
+    let session = sessionId
+      ? await this.loadSession(sessionId, userKey)
+      : null;
+
     if (!session) {
-      const started = this.startChat();
+      const started = await this.startChat(userKey);
       sessionId = started.sessionId;
       session = this.sessions.get(sessionId);
     }
@@ -48,20 +73,58 @@ class BotService {
     session.leadData = leadData;
     this.sessions.set(sessionId, session);
 
+    await chatStore.appendTurn({
+      chatId: sessionId,
+      userKey,
+      userMessage: message,
+      assistantReply: reply,
+      leadData,
+    });
+
     return { sessionId, reply, leadData };
   }
 
-  async getSummary(sessionId) {
-    const session = this.sessions.get(sessionId);
+  async getSummary(sessionId, userKey = 'guest') {
+    const session = await this.loadSession(sessionId, userKey);
     if (!session) {
       return { summary: 'Session not found. Start a new chat.', leadData: null };
     }
     const summary = await geminiService.summarize(session.history);
+    session.summary = summary;
+    this.sessions.set(sessionId, session);
+    await chatStore.saveSummary({
+      chatId: sessionId,
+      userKey,
+      summary,
+      leadData: session.leadData,
+    });
     return { summary, leadData: session.leadData };
   }
 
-  async syncCrm(sessionId) {
-    const session = this.sessions.get(sessionId);
+  async listHistory(userKey = 'guest') {
+    return chatStore.listChats(userKey);
+  }
+
+  async getHistoryChat(sessionId, userKey = 'guest') {
+    const session = await this.loadSession(sessionId, userKey);
+    if (!session) return null;
+    const saved = await chatStore.getChat(sessionId, userKey);
+    return {
+      sessionId,
+      messages: session.history,
+      leadData: session.leadData,
+      summary: session.summary || saved?.summary || null,
+      title: saved?.title || 'Chat',
+    };
+  }
+
+  async deleteHistory(sessionId, userKey = 'guest') {
+    this.sessions.delete(sessionId);
+    return chatStore.deleteChat(sessionId, userKey);
+  }
+
+  async syncCrm(sessionId, userKey = 'guest') {
+    const session = await this.loadSession(sessionId, userKey);
     if (!session) {
       return { success: false, message: 'Session not found', results: {} };
     }
@@ -79,9 +142,10 @@ class BotService {
     };
 
     const results = await this.crm.syncLeads(payload);
+    const anySuccess = Object.values(results).some((r) => r?.success);
     return {
-      success: Object.values(results).some((r) => r?.success),
-      message: 'CRM sync completed',
+      success: anySuccess,
+      message: anySuccess ? 'CRM sync completed' : 'Not integrated',
       results,
       leadData: session.leadData,
     };

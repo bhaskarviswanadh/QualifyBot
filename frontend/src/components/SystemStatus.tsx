@@ -1,7 +1,5 @@
 "use client";
 
-import { Activity, Cloud, Sparkles } from "lucide-react";
-import { SiHubspot } from "react-icons/si";
 import type { SystemStatus as Status } from "@/lib/types";
 
 type Props = {
@@ -9,42 +7,53 @@ type Props = {
 };
 
 export function SystemStatusBar({ status }: Props) {
+  const dbLabel =
+    status?.database === "neon"
+      ? "Neon"
+      : status?.database === "configured"
+        ? "DB set"
+        : "Local";
+
   const items = [
     {
       label: "API",
+      detail: status?.api ? "Online" : "Offline",
       ok: status?.api ?? false,
-      icon: Activity,
     },
     {
       label: "Gemini",
+      detail: status?.gemini ? "Ready" : "Add API key",
       ok: status?.gemini ?? false,
-      icon: Sparkles,
     },
     {
-      label: status?.crm === "live" ? "CRM Live" : "CRM Mock",
-      ok: Boolean(status),
-      icon: Cloud,
+      label: "History",
+      detail: dbLabel,
+      ok: status?.database === "neon" || status?.database === "configured",
+    },
+    {
+      label: "CRM",
+      detail: "Not integrated",
+      ok: false,
     },
   ];
 
   return (
-    <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--muted)]">
-      {items.map(({ label, ok, icon: Icon }) => (
+    <div className="flex flex-wrap items-center gap-1.5 text-xs text-[var(--muted)]">
+      {items.map(({ label, detail, ok }) => (
         <span
           key={label}
-          className="inline-flex items-center gap-1.5 rounded-full border border-[var(--line)] bg-white/50 px-3 py-1 backdrop-blur"
+          className="inline-flex items-center gap-1.5 rounded-full border border-[var(--line)] bg-white/90 px-2.5 py-1"
+          title={`${label}: ${detail}`}
         >
           <span
-            className={`h-2 w-2 rounded-full ${ok ? "bg-emerald-500" : "bg-amber-500"}`}
+            className={`h-1.5 w-1.5 rounded-full ${
+              ok ? "bg-[var(--green)]" : "bg-[var(--grey)]"
+            }`}
           />
-          <Icon size={14} />
-          {label}
+          <span className="font-medium text-[var(--ink)]">{label}</span>
+          <span className="text-[var(--muted)]">{detail}</span>
         </span>
       ))}
-      <span className="inline-flex items-center gap-1.5 text-[var(--muted)]">
-        <SiHubspot className="text-[#ff7a59]" size={14} />
-        HubSpot + Salesforce
-      </span>
     </div>
   );
 }

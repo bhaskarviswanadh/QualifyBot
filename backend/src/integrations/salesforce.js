@@ -10,12 +10,11 @@ export class SalesforceIntegration {
 
   async createLead(leadInfo) {
     if (this.mockMode) {
-      const leadId = `mock_sf_${Date.now()}`;
       return {
-        success: true,
-        lead_id: leadId,
-        salesforce_id: leadId,
-        message: 'Mock Salesforce lead created',
+        success: false,
+        lead_id: null,
+        salesforce_id: null,
+        message: 'Not integrated',
       };
     }
 

@@ -1,14 +1,27 @@
 @import "tailwindcss";
 
 :root {
-  --ink: #0f2a32;
-  --muted: #5b6f76;
-  --accent: #0f7a6c;
-  --accent-soft: #d8efe9;
-  --line: rgba(15, 42, 50, 0.12);
-  --surface: #eef5f3;
-  --background: #f3f7f5;
-  --foreground: #0f2a32;
+  --blue: #2563eb;
+  --blue-deep: #1d4ed8;
+  --blue-soft: #eff6ff;
+  --green: #0d9488;
+  --green-deep: #0f766e;
+  --green-soft: #ecfdf8;
+  --white: #ffffff;
+  --grey: #6b7280;
+  --grey-soft: #f3f4f6;
+  --ink: #1f2937;
+  --muted: #6b7280;
+  --line: rgba(31, 41, 55, 0.12);
+  --surface: #f8fafc;
+  --background: #f8fafc;
+  --foreground: #1f2937;
+  --accent: var(--blue);
+  --accent-soft: var(--blue-soft);
+  /* aliases so older class names keep working */
+  --orange: var(--blue);
+  --orange-deep: var(--blue-deep);
+  --orange-soft: var(--blue-soft);
 }
 
 @theme inline {
@@ -16,6 +29,12 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-body);
   --font-display: var(--font-display);
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
 }
 
 body {
@@ -30,9 +49,43 @@ body {
 
 .bg-atmosphere {
   background:
-    radial-gradient(1200px 600px at 10% -10%, rgba(15, 122, 108, 0.18), transparent 55%),
-    radial-gradient(900px 500px at 90% 0%, rgba(42, 157, 143, 0.16), transparent 50%),
-    linear-gradient(160deg, #f7faf8 0%, #e8f1ee 45%, #f2f6f4 100%);
+    radial-gradient(1100px 520px at 0% -5%, rgba(37, 99, 235, 0.14), transparent 55%),
+    radial-gradient(900px 480px at 100% 5%, rgba(13, 148, 136, 0.12), transparent 50%),
+    linear-gradient(165deg, #ffffff 0%, #f1f5f9 45%, #ecfdf8 100%);
+}
+
+.bg-brand-gradient {
+  background: linear-gradient(135deg, var(--blue) 0%, #3b82f6 40%, var(--green) 100%);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--blue) 0%, var(--blue-deep) 100%);
+  color: var(--white);
+  transition: filter 0.2s ease, transform 0.15s ease;
+}
+
+.btn-primary:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: linear-gradient(135deg, var(--green) 0%, var(--green-deep) 100%);
+  color: var(--white);
+  transition: filter 0.2s ease;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 @keyframes fade-up {

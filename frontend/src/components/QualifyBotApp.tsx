@@ -5,53 +5,144 @@ import {
   CloudUpload,
   FileText,
   LoaderCircle,
+  LogOut,
   MessageSquarePlus,
+  X,
 } from "lucide-react";
-import { FaSalesforce } from "react-icons/fa";
-import { getHealth, getSummary, sendMessage, startChat, syncCrm } from "@/lib/api";
+import {
+  clearAuthSession,
+  getAuthSession,
+  setAuthSession,
+  setGuestSession,
+  type AuthSession,
+} from "@/lib/auth";
+import {
+  deleteHistoryChat,
+  getHealth,
+  getHistoryChat,
+  getSummary,
+  listHistory,
+  sendMessage,
+  startChat,
+  syncCrm,
+  type HistoryItem,
+} from "@/lib/api";
 import type { ChatMessage, LeadData, SystemStatus } from "@/lib/types";
+import { BrandLogo } from "./BrandLogo";
 import { ChatPanel } from "./ChatPanel";
+import { HistoryPanel } from "./HistoryPanel";
 import { LeadSidebar } from "./LeadSidebar";
+import { LoginPage } from "./LoginPage";
 import { SystemStatusBar } from "./SystemStatus";
 
 export function QualifyBotApp() {
+  const [auth, setAuth] = useState<AuthSession | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [leadData, setLeadData] = useState<LeadData | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
   const [status, setStatus] = useState<SystemStatus | null>(null);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [noticeTone, setNoticeTone] = useState<"info" | "warn">("info");
+
+  const userKey = auth?.userKey || "";
+
+  useEffect(() => {
+    setAuth(getAuthSession());
+    setAuthChecked(true);
+  }, []);
+
+  const refreshHistory = useCallback(async (key: string) => {
+    if (!key) {
+      setHistory([]);
+      return;
+    }
+    setHistoryLoading(true);
+    try {
+      const result = await listHistory(key);
+      setHistory(result.items || []);
+    } catch {
+      setHistory([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
 
   const boot = useCallback(async () => {
+    if (!userKey) return;
     setLoading(true);
     setNotice(null);
     setSummary(null);
+    setHistory([]);
     try {
       const [chat, health] = await Promise.all([
-        startChat(),
+        startChat(userKey),
         getHealth().catch(() => null),
       ]);
       setSessionId(chat.sessionId);
       setMessages([{ role: "assistant", content: chat.greeting }]);
       setLeadData(null);
       if (health?.status) setStatus(health.status);
+      setNoticeTone("info");
+      setNotice("New chat started. Ask about role, company, or needs.");
+      await refreshHistory(userKey);
     } catch (err) {
+      setNoticeTone("warn");
       setNotice(
         err instanceof Error
           ? err.message
-          : "Could not reach the API. Is the backend running on :4000?"
+          : "Could not reach the API. Start the backend on port 4000."
       );
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [userKey, refreshHistory]);
 
   useEffect(() => {
+    if (!auth?.userKey) return;
+    setHistory([]);
+    setMessages([]);
+    setLeadData(null);
+    setSummary(null);
+    setSessionId(null);
     void boot();
-  }, [boot]);
+  }, [auth?.userKey]); // eslint-disable-line react-hooks/exhaustive-deps -- reset when identity changes
+
+  function handleLogin(user: {
+    userKey: string;
+    email: string;
+    name?: string | null;
+  }) {
+    setAuth(
+      setAuthSession({
+        userKey: user.userKey,
+        email: user.email,
+        name: user.name,
+        isGuest: false,
+      })
+    );
+  }
+
+  function handleGuest() {
+    setAuth(setGuestSession());
+  }
+
+  function handleLogout() {
+    clearAuthSession();
+    setAuth(null);
+    setSessionId(null);
+    setMessages([]);
+    setLeadData(null);
+    setSummary(null);
+    setHistory([]);
+    setNotice(null);
+  }
 
   async function handleSend() {
     if (!input.trim() || loading) return;
@@ -61,14 +152,16 @@ export function QualifyBotApp() {
     setLoading(true);
     setNotice(null);
     try {
-      const result = await sendMessage(sessionId || "", text);
+      const result = await sendMessage(sessionId || "", text, userKey);
       setSessionId(result.sessionId);
       setMessages((prev) => [
         ...prev,
         { role: "assistant", content: result.reply },
       ]);
       setLeadData(result.leadData);
+      await refreshHistory(userKey);
     } catch (err) {
+      setNoticeTone("warn");
       setNotice(err instanceof Error ? err.message : "Chat failed");
       setMessages((prev) => [
         ...prev,
@@ -82,14 +175,64 @@ export function QualifyBotApp() {
     }
   }
 
-  async function handleSummary() {
-    if (!sessionId) return;
-    setBusyAction("summary");
+  async function handleOpenHistory(id: string) {
+    setBusyAction("history");
+    setNotice(null);
     try {
-      const result = await getSummary(sessionId);
+      const chat = await getHistoryChat(id, userKey);
+      setSessionId(chat.sessionId);
+      setMessages(chat.messages || []);
+      setLeadData(chat.leadData);
+      setSummary(chat.summary);
+      setNoticeTone("info");
+      setNotice(`Opened past chat: ${chat.title}`);
+    } catch (err) {
+      setNoticeTone("warn");
+      setNotice(err instanceof Error ? err.message : "Could not open chat");
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleDeleteHistory(id: string) {
+    try {
+      await deleteHistoryChat(id, userKey);
+      if (sessionId === id) {
+        await boot();
+      } else {
+        await refreshHistory(userKey);
+      }
+      setNoticeTone("info");
+      setNotice("Chat deleted.");
+    } catch (err) {
+      setNoticeTone("warn");
+      setNotice(err instanceof Error ? err.message : "Delete failed");
+    }
+  }
+
+  async function handleSummary() {
+    if (!sessionId) {
+      setNoticeTone("warn");
+      setNotice("Start a chat first, then generate a summary.");
+      return;
+    }
+    setBusyAction("summary");
+    setNotice(null);
+    try {
+      const result = await getSummary(sessionId, userKey);
       setSummary(result.summary);
       if (result.leadData) setLeadData(result.leadData);
+      setNoticeTone("info");
+      setNotice("Summary ready — see the Summary panel on the right.");
+      await refreshHistory(userKey);
+      requestAnimationFrame(() => {
+        document.getElementById("lead-summary")?.scrollIntoView({
+          behavior: "smooth",
+          block: "nearest",
+        });
+      });
     } catch (err) {
+      setNoticeTone("warn");
       setNotice(err instanceof Error ? err.message : "Summary failed");
     } finally {
       setBusyAction(null);
@@ -97,87 +240,154 @@ export function QualifyBotApp() {
   }
 
   async function handleSync() {
-    if (!sessionId) return;
+    if (!sessionId) {
+      setNoticeTone("warn");
+      setNotice("Start a chat first before syncing.");
+      return;
+    }
     setBusyAction("sync");
     try {
-      const result = await syncCrm(sessionId);
+      const result = await syncCrm(sessionId, userKey);
       if (result.leadData) setLeadData(result.leadData);
-      const hs = result.results?.hubspot?.message || "HubSpot done";
-      const sf = result.results?.salesforce?.message || "Salesforce done";
-      setNotice(`${result.message}: ${hs}; ${sf}`);
+      const hs = result.results?.hubspot?.message || "Not integrated";
+      const sf = result.results?.salesforce?.message || "Not integrated";
+      setNoticeTone("warn");
+      setNotice(`CRM sync: HubSpot — ${hs}. Salesforce — ${sf}.`);
     } catch (err) {
+      setNoticeTone("warn");
       setNotice(err instanceof Error ? err.message : "CRM sync failed");
     } finally {
       setBusyAction(null);
     }
   }
 
-  return (
-    <div className="relative min-h-screen overflow-hidden">
-      <div className="pointer-events-none absolute inset-0 bg-atmosphere" />
-      <div className="pointer-events-none absolute -left-24 top-10 h-72 w-72 rounded-full bg-[var(--accent)]/20 blur-3xl animate-drift" />
-      <div className="pointer-events-none absolute -right-16 bottom-10 h-80 w-80 rounded-full bg-teal-400/20 blur-3xl animate-drift-slow" />
+  if (!authChecked) {
+    return (
+      <div className="flex h-dvh items-center justify-center bg-atmosphere">
+        <p className="text-sm text-[var(--muted)]">Loading…</p>
+      </div>
+    );
+  }
 
-      <main className="relative mx-auto flex min-h-screen max-w-7xl flex-col px-4 py-6 md:px-8 md:py-8">
-        <header className="mb-6 flex flex-col gap-4 md:mb-8 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="font-display text-4xl tracking-tight text-[var(--ink)] md:text-5xl">
-              QualifyBot
-            </p>
-            <p className="mt-2 max-w-xl text-[var(--muted)]">
-              Chat with prospects, score intent in real time, and sync qualified
-              leads to CRM.
-            </p>
+  if (!auth) {
+    return <LoginPage onSuccess={handleLogin} onGuest={handleGuest} />;
+  }
+
+  return (
+    <div className="relative h-dvh overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 bg-atmosphere" />
+      <div className="pointer-events-none absolute -left-24 top-6 h-56 w-56 rounded-full bg-[var(--blue)]/15 blur-3xl" />
+      <div className="pointer-events-none absolute -right-16 bottom-6 h-64 w-64 rounded-full bg-[var(--green)]/12 blur-3xl" />
+
+      <main className="relative mx-auto flex h-dvh max-w-7xl flex-col gap-3 overflow-hidden px-4 py-3 md:px-6 md:py-4">
+        <header className="flex shrink-0 items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <BrandLogo
+              size={36}
+              className="shrink-0 rounded-lg shadow-md shadow-[var(--blue)]/20"
+            />
+            <div className="min-w-0">
+              <p className="font-display text-xl font-semibold tracking-tight text-[var(--ink)] md:text-2xl">
+                Qualify<span className="text-[var(--blue)]">Bot</span>
+              </p>
+              <p className="truncate text-xs text-[var(--muted)]">
+                {auth.isGuest
+                  ? "Guest mode · only your chats on this browser"
+                  : `${auth.email} · only your chats & lead data`}
+              </p>
+            </div>
           </div>
-          <SystemStatusBar status={status} />
+          <div className="flex shrink-0 items-center gap-2">
+            <div className="hidden lg:block">
+              <SystemStatusBar status={status} />
+            </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              title="Sign out"
+              className="inline-flex items-center gap-1.5 rounded-full border border-[var(--line)] bg-white px-3 py-1.5 text-xs font-medium text-[var(--ink)] transition hover:border-[var(--blue)] hover:text-[var(--blue)]"
+            >
+              <LogOut size={13} />
+              Sign out
+            </button>
+          </div>
         </header>
 
-        <div className="mb-4 flex flex-wrap gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => void boot()}
-            className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] bg-white/70 px-4 py-2 text-sm font-medium text-[var(--ink)] backdrop-blur transition hover:border-[var(--accent)]"
+            disabled={loading || busyAction !== null}
+            title="Start a fresh conversation"
+            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--line)] bg-white px-3.5 py-1.5 text-sm font-medium text-[var(--ink)] transition hover:border-[var(--blue)] hover:text-[var(--blue)] disabled:opacity-50"
           >
-            <MessageSquarePlus size={16} />
-            New Chat
-          </button>
-          <button
-            type="button"
-            onClick={() => void handleSync()}
-            disabled={!sessionId || busyAction === "sync"}
-            className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] bg-white/70 px-4 py-2 text-sm font-medium text-[var(--ink)] backdrop-blur transition hover:border-[var(--accent)] disabled:opacity-50"
-          >
-            {busyAction === "sync" ? (
-              <LoaderCircle size={16} className="animate-spin" />
-            ) : (
-              <CloudUpload size={16} />
-            )}
-            Sync to CRM
-            <FaSalesforce className="text-sky-600" />
+            <MessageSquarePlus size={15} />
+            New chat
           </button>
           <button
             type="button"
             onClick={() => void handleSummary()}
-            disabled={!sessionId || busyAction === "summary"}
-            className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] bg-white/70 px-4 py-2 text-sm font-medium text-[var(--ink)] backdrop-blur transition hover:border-[var(--accent)] disabled:opacity-50"
+            disabled={!sessionId || busyAction !== null}
+            title="Generate a short summary of this chat"
+            className="btn-secondary inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium disabled:opacity-50"
           >
             {busyAction === "summary" ? (
-              <LoaderCircle size={16} className="animate-spin" />
+              <LoaderCircle size={15} className="animate-spin" />
             ) : (
-              <FileText size={16} />
+              <FileText size={15} />
             )}
-            Show Summary
+            Summary
           </button>
+          <button
+            type="button"
+            onClick={() => void handleSync()}
+            disabled={!sessionId || busyAction !== null}
+            title="Push lead to CRM (not integrated yet)"
+            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--line)] bg-white px-3.5 py-1.5 text-sm font-medium text-[var(--ink)] transition hover:border-[var(--green)] hover:text-[var(--green)] disabled:opacity-50"
+          >
+            {busyAction === "sync" ? (
+              <LoaderCircle size={15} className="animate-spin" />
+            ) : (
+              <CloudUpload size={15} />
+            )}
+            Sync CRM
+          </button>
+          {notice && (
+            <div
+              className={`ml-auto flex max-w-md items-start gap-2 rounded-xl px-3 py-1.5 text-xs ${
+                noticeTone === "warn"
+                  ? "border border-[var(--blue)]/20 bg-[var(--blue-soft)] text-[var(--blue-deep)]"
+                  : "border border-[var(--green)]/25 bg-[var(--green-soft)] text-[var(--green-deep)]"
+              }`}
+            >
+              <span className="min-w-0 flex-1">{notice}</span>
+              <button
+                type="button"
+                onClick={() => setNotice(null)}
+                className="shrink-0 opacity-70 hover:opacity-100"
+                aria-label="Dismiss"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          )}
         </div>
 
-        {notice && (
-          <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            {notice}
+        <div className="grid min-h-0 flex-1 gap-3 overflow-hidden lg:grid-cols-[220px_1.45fr_1fr]">
+          <div className="hidden min-h-0 overflow-hidden rounded-2xl border border-[var(--line)] bg-white/80 p-3 lg:block">
+            <HistoryPanel
+              items={history}
+              activeId={sessionId}
+              loading={historyLoading || busyAction === "history"}
+              onSelect={(id) => void handleOpenHistory(id)}
+              onDelete={(id) => void handleDeleteHistory(id)}
+            />
           </div>
-        )}
 
-        <div className="grid min-h-[70vh] flex-1 gap-5 lg:grid-cols-[1.6fr_1fr]">
-          <div className="flex min-h-[420px] flex-col rounded-[28px] border border-[var(--line)] bg-white/55 p-4 shadow-[0_20px_60px_rgba(15,40,50,0.08)] backdrop-blur-md md:p-6">
+          <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[var(--line)] bg-white/80 p-3 shadow-[0_12px_40px_rgba(31,41,55,0.06)] md:p-4">
+            <div className="mb-2 shrink-0 text-xs font-medium text-[var(--muted)]">
+              Chat · tell the bot about the prospect
+            </div>
             <ChatPanel
               messages={messages}
               input={input}
@@ -186,7 +396,11 @@ export function QualifyBotApp() {
               onSend={() => void handleSend()}
             />
           </div>
-          <div className="min-h-[420px] rounded-[28px] border border-[var(--line)] bg-white/40 p-4 backdrop-blur-md md:p-5">
+
+          <div className="min-h-0 overflow-hidden rounded-2xl border border-[var(--line)] bg-white/70 p-3 md:p-4">
+            <div className="mb-2 shrink-0 text-xs font-medium text-[var(--muted)]">
+              Lead details · updates as you chat
+            </div>
             <LeadSidebar
               leadData={leadData}
               summary={summary}
